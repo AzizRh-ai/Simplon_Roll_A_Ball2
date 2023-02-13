@@ -8,22 +8,35 @@ public class Player : MonoBehaviour
     public delegate void OnScoreMessage(int value);
     public static event OnScoreMessage OnScoreUpdate;
 
-    [SerializeField] private TextMeshProUGUI scoreText;
 
-    private Rigidbody _rigidbody;
-    private int ScoreValue = 0;
+    [Header("Ball")]
     [SerializeField] private float speed = 15f;
+    private Rigidbody _rigidbody;
+
+    [Header("Score Value")]
+    private int ScoreValue = 0;
 
     // Scriptable Object
+    [Header("Scenario (Scriptable Object)")]
     [SerializeField] private Scenario _scenario;
+
+    //Prefab
+    [Header("Prefab linked to Scenario")]
     [SerializeField] private GameObject _wallPrefab;
 
-    void Start()
+    // Score
+    [Header("Score UI")]
+    [SerializeField] private TextMeshProUGUI scoreText;
+
+    // Score
+    [Header("GameOver UI")]
+    [SerializeField] private GameObject gameOver;
+
+    private void Start()
     {
-        _scenario.Score = 0;
         if (SceneManager.GetActiveScene().buildIndex != 0)
         {
-            ScoreValue = PlayerPrefs.GetInt("Score");
+            ScoreValue = _scenario.Score;
             scoreText.text = ScoreValue.ToString();
         }
         _rigidbody = GetComponent<Rigidbody>();
@@ -38,6 +51,7 @@ public class Player : MonoBehaviour
         _rigidbody.AddForce(direction * 0.5f);
 
     }
+
 
     private void OnTriggerEnter(Collider other)
     {
@@ -63,17 +77,37 @@ public class Player : MonoBehaviour
     {
         ScoreValue++;
 
-        PlayerPrefs.SetInt("Score", ScoreValue);
+
         //j'invoque OnScoreUpdate
         OnScoreUpdate?.Invoke(ScoreValue);
 
+        // je save jusqu'a la fin de session
         _scenario.Score = ScoreValue;
 
-        Instantiate(_wallPrefab, _scenario.Wall[_scenario.Score - 1], Quaternion.Euler(0f, 90f, 0f));
+        //je save aussi dans le registre la clé Score
+        //HKEY_CURRENT_USER\Software\Unity\UnityEditor\DefaultCompany\Roll_A_Ball
+        PlayerPrefs.SetInt("Score", ScoreValue);
+
+        //J'instancie le mur a une position suivant l'index du tableau dans scenario..
+        Instantiate(_wallPrefab, _scenario.Wall[_scenario.Score - 1], Quaternion.identity);
+
+        // si score =8 niveau suivant
         if (ScoreValue == 8)
         {
+            // Je save score dans scenario pour le niveau suivant
             _scenario.Score = ScoreValue;
             SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex + 1);
         }
+        else if (ScoreValue == 16)
+        {
+            gameOver.SetActive(true);
+            Time.timeScale = 0;
+        }
+    }
+
+    private void OnDestroy()
+    {
+        //On supprime la clé de registre une fois terminer.
+        PlayerPrefs.DeleteKey("Score");
     }
 }
